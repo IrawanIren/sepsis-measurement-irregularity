@@ -1,0 +1,62 @@
+{
+  "written": "2026-11-17 00:47:18",
+  "question": "Do the paired differences from R2 and the operating-point conclusions hold in a later calendar period?",
+  "cohort": "all 19,902 patients of [15]",
+  "development": "anchor_year_group 2008 - 2010, 2011 - 2013, 2014 - 2016; 85% for training, 15% for early stopping and Platt scaling",
+  "evaluation": "anchor_year_group 2017 - 2019, evaluated once",
+  "models": [
+    "R2",
+    "R1",
+    "R3",
+    "R4",
+    "R5",
+    "GRUD"
+  ],
+  "seeds": [
+    42,
+    1,
+    2
+  ],
+  "reference": "R2",
+  "primary contrasts": [
+    "R1 - R2",
+    "R3 - R2",
+    "R4 - R2",
+    "R5 - R2"
+  ],
+  "secondary contrasts": [
+    "GRUD - R2"
+  ],
+  "tolerance": {
+    "metric": "AUROC",
+    "margin": 0.01,
+    "rule": "difference bounded by the margin when the 90% DeLong interval lies inside +/- margin"
+  },
+  "adjustment": "Benjamini-Hochberg within the primary contrasts",
+  "operating points": [
+    "top 10%",
+    "top 20%",
+    "risk >= 0.15",
+    "risk >= 0.30",
+    "risk >= 0.50"
+  ],
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 2026
+  },
+  "hyperparameters": {
+    "CNN-BiGRU": {
+      "learning_rate": 0.0001,
+      "l2": 0.005,
+      "gru1": 32,
+      "gru2": 32,
+      "dropout": 0.4
+    },
+    "GRUD": {
+      "units": 64,
+      "learning_rate": 5e-05,
+      "l2": 0.001,
+      "dropout": 0.2
+    }
+  }
+}
