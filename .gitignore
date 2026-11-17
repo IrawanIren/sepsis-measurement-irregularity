@@ -1,0 +1,30 @@
+# Patient-level data, predictions, and model files must never be committed
+# (MIMIC-IV data use agreement). Aggregate tables added upon publication
+# should be listed explicitly below with a "!" rule.
+*.csv
+*.tsv
+*.parquet
+*.npz
+*.npy
+*.pkl
+*.pickle
+*.h5
+*.keras
+*.ckpt*
+*.zip
+*.gz
+data/
+cache*/
+preds/
+results*/
+tables*/
+figures*/
+
+# Python and notebooks
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# System
+.DS_Store
+Thumbs.db
