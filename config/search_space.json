@@ -1,0 +1,13 @@
+{
+  "description": "Random search for GRU-D and TBAL (Table 6): n_trials distinct draws from the grid, sampled with sampling_seed, each trained with training_seed on folds 1-3 of the cross-validation; the objective is the mean AUROC over the three folds.",
+  "grid": {
+    "units": [32, 64, 128],
+    "learning_rate": [0.001, 0.0001, 5e-05],
+    "l2": [0.01, 0.005, 0.001],
+    "dropout": [0.2, 0.3, 0.4]
+  },
+  "n_trials": 15,
+  "folds": [1, 2, 3],
+  "training_seed": 42,
+  "sampling_seed": 2026
+}

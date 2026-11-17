@@ -1,0 +1,6 @@
+{
+  "units": 64,
+  "learning_rate": 5e-05,
+  "l2": 0.001,
+  "dropout": 0.2
+}

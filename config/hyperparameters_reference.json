@@ -1,0 +1,20 @@
+{
+  "description": "Architecture settings of [15], used without retuning for R1 to R5, T, C, and S (Table 5). The notebook reads them from best_hp_rebuilt.json and best_window_rebuilt.json produced by the code of [15]; the values are listed here for reference.",
+  "hyperparameters": {
+    "learning_rate": 0.0001,
+    "l2": 0.005,
+    "gru1": 32,
+    "gru2": 32,
+    "dropout": 0.4
+  },
+  "window": {
+    "window_size": 6,
+    "step": 1
+  },
+  "training": {
+    "max_epochs": 40,
+    "batch_size": 512,
+    "early_stopping": "AUROC on an internal 15% of the training patients, patience 4, best epoch kept",
+    "seeds": [42, 1, 2]
+  }
+}

@@ -1,0 +1,10 @@
+# TensorFlow and Keras are the versions used for the reported results
+# (Google Colab, GPU runtime). The other packages are minimum versions.
+tensorflow==2.21.0
+keras==3.13.2
+numpy>=2.0
+pandas>=2.2
+scipy>=1.13
+scikit-learn>=1.6
+matplotlib>=3.9
+pyarrow>=14.0
