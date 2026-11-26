@@ -275,7 +275,7 @@ def table_dictionary(features, urine, num_names, cat_names, static_labs, urine_s
             ('hour', 'hour counted from the clock hour of ICU admission, 0-23'),
             ('label', 'death within 30 days of ICU admission (1) or not (0)'),
             ('eligible', '1 if antibiotic, culture, and SOFA >= 2 had all occurred by the 24-hour landmark '
-                         '(descriptive: every patient is analysed)'),
+                         'and the patient was alive and in the ICU then; only these patients are analysed'),
             ('period', 'first year of anchor_year_group (temporal split: < 2017 develop, >= 2017 evaluate)'),
             ('split', 'partition of [15] (fold 1-5 or test)')]
     for f in features:

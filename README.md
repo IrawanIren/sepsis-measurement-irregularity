@@ -7,10 +7,13 @@ Engineering and Systems (Paper No. 20267589).
 
 The study asks whether representing the timing of measurement explicitly
 improves the prediction, at 24 hours after admission to intensive care, of
-30-day mortality in 19,902 adults with sepsis in MIMIC-IV. Hourly values and
+30-day mortality in adults with sepsis in MIMIC-IV. The prediction is made
+for the patients eligible at that landmark: of the 19,902 patients of an
+earlier study, those who had met Sepsis-3 by then and were alive and still in
+intensive care. Every input is available at the landmark. Hourly values and
 observation masks are rebuilt together from time-stamped records, five input
-representations are compared with the cohort, partition, architecture, and
-hyperparameters of an earlier study held fixed, and GRU-D and a time-aware
+representations are compared with the partition, architecture, and
+hyperparameters of the earlier study held fixed, and GRU-D and a time-aware
 attention network serve as comparators. The main contrast is repeated in a
 later admission period under an analysis plan fixed before training.
 
@@ -51,17 +54,23 @@ paper can be shared with credentialed MIMIC-IV users on request.
 │   ├── vitalsign_records.sql       Vital signs and bedside glucose
 │   ├── lab_records.sql             Laboratory results
 │   ├── lactate_records.sql         Lactate
-│   └── urine_output_records.sql    Urine output
+│   ├── urine_output_records.sql    Urine output
+│   ├── hourly_sofa_records.sql     Hourly SOFA windows (static inputs)
+│   └── ventilation_records.sql     Ventilation episodes (static input)
 ├── config/
 │   ├── hyperparameters_reference.json   Settings of [15] (Table 5)
 │   ├── search_space.json                Random search for GRU-D and TBAL
 │   ├── selected_hp_GRUD.json            Selected GRU-D setting (Table 6)
 │   ├── selected_hp_TBAL.json            Selected TBAL setting (Table 6)
-│   ├── analysis_plan_temporal.json      Copy of the plan, read by the notebook
-│   └── analysis_plan_temporal.sha256    Its hash, recorded before training
+│   ├── analysis_plan_temporal.json      Copy of the first plan
+│   ├── analysis_plan_temporal.sha256    Its hash, recorded before its runs
+│   ├── analysis_plan_temporal_v2.json   Copy of the second plan, read by Cell 16
+│   └── analysis_plan_temporal_v2.sha256 Its hash, recorded before its runs
 ├── plan/
-│   └── analysis_plan_temporal.json      Temporal validation plan, committed
-│                                        before the temporal runs
+│   ├── analysis_plan_temporal.json      First temporal validation plan,
+│   │                                    committed before its runs
+│   └── analysis_plan_temporal_v2.json   Second plan (second revision),
+│                                        committed before its runs
 ├── requirements.txt
 └── LICENSE
 ```
@@ -110,13 +119,16 @@ All files go into one folder, `BASE` (in Colab, a folder on Google Drive).
    | `lab_records.sql` | `pivot_lab.csv` |
    | `lactate_records.sql` | `lactate.csv` |
    | `urine_output_records.sql` | `urine_output.csv` |
+   | `hourly_sofa_records.sql` | `hourly_sofa.csv` (or the whole hourly table as `sofa_score.csv`) |
+   | `ventilation_records.sql` | `ventilation.csv` |
 
    The extracts may cover the whole database: the notebook keeps the stays
    of the cohort and hours 0 to 23 itself.
 
-4. **Code.** Copy `src/` and `config/` into `BASE`. The notebook loads the
-   modules from `BASE/src` and the temporal analysis plan from `BASE/config`;
-   when they are missing, Cell 2 copies them from this repository.
+4. **Code.** Cell 2 copies the modules of `src/` from this repository to
+   `BASE/src`, so that every run uses the published code, and adds any file of
+   `config/` missing from `BASE/config`. Without access to the repository,
+   copy `src/` and `config/` into `BASE` by hand.
 
 ## Running the analysis
 
@@ -127,24 +139,26 @@ session that stops resumes where it left off.
 | Cell | What it does |
 |---|---|
 | 1 | Session setup, paths, and seeds (42, 1, 2) |
-| 2 | Copies the modules and the configuration from this repository when they are not in `BASE` |
+| 2 | Copies the modules and any missing configuration file from this repository |
 | 3 | Loads the modules, the inputs of [15], and the ICU stays |
-| 4 | Index stay of each patient and eligibility at the 24-hour landmark |
+| 4 | Index stay of each patient and eligibility at the 24-hour landmark, which defines the analysis cohort |
 | 5 | Rebuilds the hourly values and masks from the time-stamped records and writes the training table (once) |
 | 6 | Reconciliation with the cohort table of [15] |
 | 7 | Derived channels and the cutoff test |
-| 8 | Partitions and the internal early-stopping splits |
+| 7b | Static inputs as of the landmark |
+| 8 | Partitions of the eligible patients and the internal early-stopping splits |
 | 9 | Audits: winsorisation, static inputs, and the timing of every predictor |
 | 10 | Optional: confirms that the environment reproduces the training of [15] |
 | 11 | Model definitions (no training) |
 | 12 | Trains R1 to R5, T, C, and S |
-| 13 | Random search for GRU-D and TBAL |
+| 13 | Hyperparameters of GRU-D and TBAL (kept from the first revision; optional new search) |
 | 14 | Trains the GRU-D family and TBAL |
-| 15 | Earlier inputs, and models without the Charlson index |
-| 16 | Temporal validation: uses the analysis plan in `config/` (or writes one) and prints its SHA-256 before any temporal model is trained |
+| 15 | Earlier inputs |
+| 16 | Temporal validation: writes the second analysis plan (or uses the one in `config/`) and prints its SHA-256 before any temporal model is trained |
 | 17 | Temporal validation runs |
 | 18 | Performance with intervals |
 | 19 | Paired comparisons and bounded differences |
+| 19b | Exploratory, outside the plan: the later period against values alone (R1) |
 | 20 | Operating points, net benefit, and decision curves |
 | 21 | Measurement counts by outcome and observation frequency |
 | 22 | Figures |
@@ -152,10 +166,21 @@ session that stops resumes where it left off.
 
 ## Protocol
 
-* **Cohort, outcome, and partition** are those of [15]: 19,902 patients, death
-  within 30 days of ICU admission, a held-out test set of 3,981 patients, and
-  five folds of the remaining 15,921. Eligibility at the 24-hour landmark
-  (Cell 4) describes the cohort; every patient is analysed.
+* **Cohort, outcome, and partition.** Of the 19,902 patients of [15], the
+  analysis keeps those eligible at the 24-hour landmark (Cell 4): the
+  antibiotic, the culture, and SOFA >= 2 had all occurred by the landmark, and
+  the patient was alive and still in intensive care. The outcome is death
+  within 30 days of ICU admission. Every eligible patient keeps the partition
+  of [15], its held-out test set or one of its five folds; the other patients
+  are neither trained on nor evaluated.
+* **Static inputs** must be available at the landmark (Cell 7b). The Charlson
+  comorbidity index, whose codes are assigned at hospital discharge, and the
+  SOFA score at Sepsis-3 onset are not used. Invasive ventilation, the
+  first-day SOFA score and its six components, the minimum Glasgow Coma Scale,
+  and vasopressor use are recomputed from records and hourly windows that end
+  at or before the landmark, with the definition that best reproduces the
+  values of [15] under its own time rule. Every model receives the same 22
+  static inputs.
 * **Inputs.** Each record is assigned to a clock hour counted from the clock
   hour of ICU admission, and only hours 0 to 23 are used. The value of an hour
   is the mean of its valid records, and the mask is one when the hour holds
@@ -175,34 +200,55 @@ session that stops resumes where it left off.
 * **Seeds** 42, 1, and 2; probabilities are averaged across seeds before any
   metric is computed.
 * **Hyperparameters.** The settings of [15] are used without retuning for the
-  channel-based models. GRU-D and TBAL use the settings selected by the random
-  search in `config/search_space.json`.
+  channel-based models. GRU-D and TBAL use the settings selected in the first
+  revision by the random search in `config/search_space.json`, which used
+  development folds 1 to 3 only.
 * **Statistics.** DeLong tests for the AUROC; the AUPRC is the average
   precision without interpolation, with 2,000 paired bootstrap resamples
   (seed 2026); Benjamini-Hochberg adjustment within each family of contrasts.
   A difference is bounded within ±0.01 when its 90% DeLong interval lies
   inside the margin.
-* **Temporal validation.** Models are trained on admissions from 2008 to 2016
-  and evaluated once on admissions from 2017 to 2019, under the plan in
-  `plan/analysis_plan_temporal.json`. The plan was written on 17 November 2026
-  at 00:47:18 UTC, when its SHA-256 was recorded
-  (`config/analysis_plan_temporal.sha256`), and committed to this repository
-  at 01:10:05 UTC (commit
+* **Temporal validation.** Models are trained on eligible patients admitted
+  from 2008 to 2016 and evaluated on eligible patients admitted from 2017 to
+  2019, under the second plan, `plan/analysis_plan_temporal_v2.json`. It keeps
+  the models, seeds, contrasts, margin, operating points, and bootstrap
+  settings of the first plan and records that the period 2017 to 2019 was
+  evaluated once under it. The plan was written on 24 November 2026 at
+  16:44:54 UTC, when its SHA-256 was recorded
+  (`config/analysis_plan_temporal_v2.sha256`), and committed to this
+  repository at 16:51:49 UTC (commit
+  [f4bf8c4](https://github.com/IrawanIren/sepsis-measurement-irregularity/commit/f4bf8c4)),
+  before any model of the second revision was trained. The copy in `config/`
+  is identical and is read by Cell 16. Cell 19b compares the alternatives with
+  values alone (R1) in the later period; these contrasts are not in the plan
+  and are reported as exploratory.
+* **First plan.** In the first revision, all 19,902 patients with the static
+  inputs of [15] were evaluated under `plan/analysis_plan_temporal.json`. That
+  plan was written on 17 November 2026 at 00:47:18 UTC, when its SHA-256 was
+  recorded (`config/analysis_plan_temporal.sha256`), and committed to this
+  repository at 01:10:05 UTC (commit
   [33edf24](https://github.com/IrawanIren/sepsis-measurement-irregularity/commit/33edf24)),
   before the temporal runs; these finished at 02:30:38 UTC. The copy in
-  `config/`, which the notebook reads, is identical and was added later with
-  the rest of the code.
+  `config/` is identical and was added later with the rest of the code.
 
 Every model, the reference R2 included, is trained by the notebook on the
 same partitions, so all comparisons rest on one training procedure.
 
 ## Outputs
 
-The notebook writes `results_paperA_rev/`, `tables_paperA_rev/`, and
-`figures_paperA_rev/` in `BASE`. The training table, caches, and predictions
+The notebook writes `results_paperA_rev2/`, `tables_paperA_rev2/`, and
+`figures_paperA_rev2/` in `BASE`. The training table, caches, and predictions
 contain patient-level data and stay in `BASE`; Cell 23 exports aggregate files
 only. Aggregate result tables and figures will be added to this repository
 upon publication.
+
+## Versions
+
+* **Second revision** (this version): eligible patients only, static inputs
+  as of the landmark, and the second temporal plan.
+* **First revision**: commit
+  [f68f489](https://github.com/IrawanIren/sepsis-measurement-irregularity/commit/f68f489),
+  with all 19,902 patients of [15] and the static inputs of [15].
 
 ## Citation
 
